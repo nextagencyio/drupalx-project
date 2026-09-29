@@ -58,14 +58,16 @@ function compileCss() {
 
 // ---- Rebuild (recompiling CSS first — twig/data edits change the class set) ----
 let building = false;
-function rebuild({ css = true } = {}) {
+async function rebuild({ css = true } = {}) {
   if (building) return;
   building = true;
   const t0 = Date.now();
   try {
     if (css) compileCss();
     bustPageCaches();
-    build();
+    // build() is async: reload only after the pages are actually written,
+    // or the browser races ahead and shows the previous build.
+    await build();
     // Static Drupal/Canvas-compat check — warn (don't break the loop) so you
     // see enum/required/slot issues live.
     try {

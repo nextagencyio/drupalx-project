@@ -94,6 +94,9 @@ const environment = new TwingEnvironment(loader, {
 });
 
 // --- Drupal Twig shims ------------------------------------------------------
+// Twing 3 renders synchronously: every shim must return a plain value. A
+// Promise prints as "[object Promise]" (and dx_image(...).srcset reads as
+// undefined), so rich text through |render silently broke.
 // This module/environment can be initialized more than once in a process;
 // re-registering a function/filter throws ("already registered"). Guard each
 // registration so it's idempotent.
@@ -120,25 +123,23 @@ safe(() =>
 // the Drupal side and never breaks the static render.
 safe(() =>
   environment.addFunction(
-    new TwingFunction('dx_image', (image, sizes) =>
-      Promise.resolve({
-        srcset: null,
-        sizes: sizes || '100vw',
-        width: null,
-        height: null,
-      }),
-    ),
+    new TwingFunction('dx_image', (image, sizes) => ({
+      srcset: null,
+      sizes: sizes || '100vw',
+      width: null,
+      height: null,
+    })),
   ),
 );
 
 // |t -> identity
-safe(() => environment.addFilter(new TwingFilter('t', (str) => Promise.resolve(str))));
+safe(() => environment.addFilter(new TwingFilter('t', (str) => str)));
 
 // |clean_class -> basic slug
 safe(() =>
   environment.addFilter(
     new TwingFilter('clean_class', (str) =>
-      Promise.resolve(String(str).toLowerCase().replace(/[^a-z0-9_-]+/g, '-')),
+      String(str).toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
     ),
   ),
 );
@@ -148,11 +149,11 @@ safe(() =>
 safe(() =>
   environment.addFilter(
     new TwingFilter('render', (value) => {
-      if (value === null || value === undefined) return Promise.resolve('');
+      if (value === null || value === undefined) return '';
       if (typeof value === 'object' && value !== null && 'value' in value) {
-        return Promise.resolve(value.value);
+        return value.value;
       }
-      return Promise.resolve(value);
+      return value;
     }),
   ),
 );
